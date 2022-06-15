@@ -1,0 +1,116 @@
+package main
+
+import (
+	"context"
+	"flag"
+	"fmt"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/aws/aws-sdk-go/aws/client"
+	"log"
+)
+
+// EC2CreateInstanceAPI defines the interface for the RunInstances and CreateTags functions.
+// We use this interface to test the functions using a mocked service.
+type EC2CreateInstanceAPI interface {
+	RunInstances(ctx context.Context,
+		params *ec2.RunInstancesInput,
+		optFns ...func(*ec2.Options)) (*ec2.RunInstancesOutput, error)
+
+	CreateTags(ctx context.Context,
+		params *ec2.CreateTagsInput,
+		optFns ...func(*ec2.Options)) (*ec2.CreateTagsOutput, error)
+}
+
+// MakeInstance creates an Amazon Elastic Compute Cloud (Amazon EC2) instance.
+// Inputs:
+//     c is the context of the method call, which includes the AWS Region.
+//     api is the interface that defines the method call.
+//     input defines the input arguments to the service call.
+// Output:
+//     If success, a RunInstancesOutput object containing the result of the service call and nil.
+//     Otherwise, nil and an error from the call to RunInstances.
+func MakeInstance(c context.Context, api EC2CreateInstanceAPI, input *ec2.RunInstancesInput) (*ec2.RunInstancesOutput, error) {
+	return api.RunInstances(c, input)
+}
+
+// MakeTags creates tags for an Amazon Elastic Compute Cloud (Amazon EC2) instance.
+// Inputs:
+//     c is the context of the method call, which includes the AWS Region.
+//     api is the interface that defines the method call.
+//     input defines the input arguments to the service call.
+// Output:
+//     If success, a CreateTagsOutput object containing the result of the service call and nil.
+//     Otherwise, nil and an error from the call to CreateTags.
+func MakeTags(c context.Context, api EC2CreateInstanceAPI, input *ec2.CreateTagsInput) (*ec2.CreateTagsOutput, error) {
+	return api.CreateTags(c, input)
+}
+
+type EC2 struct {
+	*client.Client
+}
+
+//TODO	- Add a function to delete the instance
+//func (c *EC2) TerminateInstances(input *TerminateInstancesInput) (*TerminateInstancesOutput, error) {
+//	return nil, nil
+//}
+
+func main() {
+	// Using the SDK's default configuration, loading additional config
+	// and credentials values from the environment variables, shared
+	// credentials, and shared configuration files
+	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion("eu-central-1"))
+	if err != nil {
+		log.Fatalf("unable to load SDK config, %v", err)
+	}
+
+	name := flag.String("n", "test", "The name of the tag to attach to the instance")
+	value := flag.String("v", "test2", "The value of the tag to attach to the instance")
+	flag.Parse()
+
+	if *name == "" || *value == "" {
+		fmt.Println("You must supply a name and value for the tag (-n NAME -v VALUE)")
+		return
+	}
+
+	client := ec2.NewFromConfig(cfg)
+
+	minInstances := int32(1)
+	maxInstances := int32(1)
+
+	input := &ec2.RunInstancesInput{
+		ImageId:      aws.String("ami-e7527ed7"),
+		InstanceType: types.InstanceTypeT2Micro,
+		MinCount:     &minInstances,
+		MaxCount:     &maxInstances,
+	}
+
+	result, err := MakeInstance(context.TODO(), client, input)
+	if err != nil {
+		fmt.Println("Got an error creating an instance:")
+		fmt.Println(err)
+		return
+	}
+
+	tagInput := &ec2.CreateTagsInput{
+		Resources: []string{*result.Instances[0].InstanceId},
+		Tags: []types.Tag{
+			{
+				Key:   name,
+				Value: value,
+			},
+		},
+	}
+
+	_, err = MakeTags(context.TODO(), client, tagInput)
+	if err != nil {
+		fmt.Println("Got an error tagging the instance:")
+		fmt.Println(err)
+		return
+	}
+
+	fmt.Println("Created tagged instance with ID " + *result.Instances[0].InstanceId)
+
+}
