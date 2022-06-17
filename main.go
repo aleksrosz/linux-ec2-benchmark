@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"flag"
 	"fmt"
@@ -9,8 +10,95 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/aws-sdk-go/aws/client"
+	"golang.org/x/crypto/ssh"
+	"io/ioutil"
 	"log"
+	"strings"
 )
+
+var cfg aws.Config
+
+type EC2 struct {
+	*client.Client
+}
+
+func readPubKey(file string) ssh.AuthMethod {
+	var key ssh.Signer
+	var err error
+	var b []byte
+	b, err = ioutil.ReadFile(file)
+	if err != nil {
+		log.Fatal(err) //"failed to read public key")
+	}
+	if !strings.Contains(string(b), "ENCRYPTED") {
+		key, err = ssh.ParsePrivateKey(b)
+		if err != nil {
+			log.Fatal(err) //"failed to parse public key")
+		}
+	} else {
+		keyPass := "password"
+		// Decrypt the key with the passphrase
+		key, err = ssh.ParsePrivateKeyWithPassphrase(b, []byte(keyPass))
+		if err != nil {
+			log.Fatal(err) // "failed to parse password-protected private key"
+		}
+	}
+	return ssh.PublicKeys(key)
+}
+
+func connectSSH() {
+	config := &ssh.ClientConfig{
+		User: "xxx",
+		Auth: []ssh.AuthMethod{
+			readPubKey("./xxx.pem"),
+		},
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+	}
+	// connect to ssh server
+	conn, err := ssh.Dial("tcp", "xxx:22", config)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer conn.Close()
+
+	session, err := conn.NewSession()
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer session.Close()
+
+	/*
+		// configure terminal mode
+		modes := ssh.TerminalModes{
+			ssh.ECHO: 0, // supress echo
+
+		}
+		// run terminal session
+		if err := session.RequestPty("xterm", 50, 80, modes); err != nil {
+			log.Fatal(err)
+		}
+
+		// start remote shell
+		if err := session.Shell(); err != nil {
+			log.Fatal(err)
+		}
+
+	*/
+
+	// Create a single command that is semicolon seperated
+	commands := []string{
+		"sysbench cpu --threads=1 --cpu-max-prime=50000 run",
+	}
+	command := strings.Join(commands, "; ")
+
+	var buff bytes.Buffer
+	session.Stdout = &buff
+	err = session.Run(command)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(buff.String())
+}
 
 // EC2CreateInstanceAPI defines the interface for the RunInstances and CreateTags functions.
 // We use this interface to test the functions using a mocked service.
@@ -48,24 +136,24 @@ func MakeTags(c context.Context, api EC2CreateInstanceAPI, input *ec2.CreateTags
 	return api.CreateTags(c, input)
 }
 
-type EC2 struct {
-	*client.Client
-}
+func terminateEC2Instace(instanceID string) {
+	client := ec2.NewFromConfig(cfg)
 
-//TODO	- Add a function to delete the instance
-//func (c *EC2) TerminateInstances(input *TerminateInstancesInput) (*TerminateInstancesOutput, error) {
-//	return nil, nil
-//}
-
-func main() {
-	// Using the SDK's default configuration, loading additional config
-	// and credentials values from the environment variables, shared
-	// credentials, and shared configuration files
-	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion("eu-central-1"))
-	if err != nil {
-		log.Fatalf("unable to load SDK config, %v", err)
+	input := &ec2.TerminateInstancesInput{
+		InstanceIds: []string{instanceID},
 	}
 
+	_, err := client.TerminateInstances(context.TODO(), input)
+	if err != nil {
+		fmt.Println("Got an error terminating the instance:")
+		fmt.Println(err)
+		return
+	}
+
+	fmt.Println("Terminated instance with ID: " + instanceID)
+}
+
+func createEC2Instance(ImageId string, InstanceType types.InstanceType, KeyName string) {
 	name := flag.String("n", "test", "The name of the tag to attach to the instance")
 	value := flag.String("v", "test2", "The value of the tag to attach to the instance")
 	flag.Parse()
@@ -81,10 +169,11 @@ func main() {
 	maxInstances := int32(1)
 
 	input := &ec2.RunInstancesInput{
-		ImageId:      aws.String("ami-e7527ed7"),
-		InstanceType: types.InstanceTypeT2Micro,
+		ImageId:      aws.String(ImageId),
+		InstanceType: InstanceType,
 		MinCount:     &minInstances,
 		MaxCount:     &maxInstances,
+		KeyName:      aws.String(KeyName),
 	}
 
 	result, err := MakeInstance(context.TODO(), client, input)
@@ -112,5 +201,29 @@ func main() {
 	}
 
 	fmt.Println("Created tagged instance with ID " + *result.Instances[0].InstanceId)
+}
 
+func loadConfig() {
+	// Using the SDK's default configuration, loading additional config
+	// and credentials values from the environment variables, shared
+	// credentials, and shared configuration files
+	var err error
+	cfg, err = config.LoadDefaultConfig(context.TODO(),
+		config.WithSharedCredentialsFiles(
+			[]string{"./credentials", "data/credentials"},
+		),
+		config.WithSharedConfigFiles(
+			[]string{"./config", "data/config"},
+		),
+	)
+	if err != nil {
+		log.Fatalf("unable to load SDK config, %v", err)
+	}
+}
+
+func main() {
+	loadConfig()
+	//createEC2Instance("xxx", types.InstanceTypeT2Micro, "xxx")
+	//terminateEC2Instace("xxx")
+	//connectSSH()
 }
