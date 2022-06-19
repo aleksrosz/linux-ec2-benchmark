@@ -1,25 +1,35 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"context"
-	"flag"
 	"fmt"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
-	"github.com/aws/aws-sdk-go/aws/client"
 	"golang.org/x/crypto/ssh"
 	"io/ioutil"
 	"log"
+	"os"
 	"strings"
+	"time"
 )
 
-var cfg aws.Config
+var (
+	instanceTypesArray []types.InstanceType
+	cfg                aws.Config
+	instanceID         string
+	instanceIP         string
+	privateKey         string
+	instanceType       types.InstanceType
+)
 
-type EC2 struct {
-	*client.Client
+//TODO
+type benchmarkResults struct {
+	instanceID   string
+	instanceType string
 }
 
 func readPubKey(file string) ssh.AuthMethod {
@@ -46,16 +56,16 @@ func readPubKey(file string) ssh.AuthMethod {
 	return ssh.PublicKeys(key)
 }
 
-func connectSSH() {
+func connectSSH(privateKey string, instanceIP string) {
 	config := &ssh.ClientConfig{
 		User: "xxx",
 		Auth: []ssh.AuthMethod{
-			readPubKey("./xxx.pem"),
+			readPubKey(privateKey),
 		},
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	}
 	// connect to ssh server
-	conn, err := ssh.Dial("tcp", "xxx:22", config)
+	conn, err := ssh.Dial("tcp", instanceIP+":22", config)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -87,6 +97,17 @@ func connectSSH() {
 
 	// Create a single command that is semicolon seperated
 	commands := []string{
+		"sudo yum -y install git gcc make automake libtool openssl-devel ncurses-compat-libs",
+		"wget http://repo.mysql.com/mysql-community-release-el7-5.noarch.rpm",
+		"sudo rpm -ivh mysql-community-release-el7-5.noarch.rpm",
+		"sudo yum -y update",
+		"sudo yum -y install mysql-community-devel mysql-community-client mysql-community-common",
+		"git clone https://github.com/akopytov/sysbench",
+		"cd sysbench",
+		"./autogen.sh",
+		"./configure",
+		"make",
+		"sudo make install",
 		"sysbench cpu --threads=1 --cpu-max-prime=50000 run",
 	}
 	command := strings.Join(commands, "; ")
@@ -97,7 +118,28 @@ func connectSSH() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println(buff.String())
+
+	logging := false
+	var buffer2 []byte
+	scanner := bufio.NewScanner(&buff)
+	for scanner.Scan() {
+		if strings.Contains(scanner.Text(), "sysbench 1.1.0") == true {
+			logging = true
+		}
+		if logging == true {
+			//log.Printf(scanner.Text())
+			buffer2 = append(buffer2, scanner.Text()...)
+			buffer2 = append(buffer2, '\n')
+			err := os.WriteFile("./"+string(instanceType), buffer2, 0600)
+			if err != nil {
+				log.Fatal(err)
+			}
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		log.Fatal(err)
+	}
 }
 
 // EC2CreateInstanceAPI defines the interface for the RunInstances and CreateTags functions.
@@ -154,14 +196,22 @@ func terminateEC2Instace(instanceID string) {
 }
 
 func createEC2Instance(ImageId string, InstanceType types.InstanceType, KeyName string) {
-	name := flag.String("n", "test", "The name of the tag to attach to the instance")
-	value := flag.String("v", "test2", "The value of the tag to attach to the instance")
-	flag.Parse()
 
-	if *name == "" || *value == "" {
-		fmt.Println("You must supply a name and value for the tag (-n NAME -v VALUE)")
-		return
-	}
+	//TODO flags
+	/*
+		name := flag.String("n", string(InstanceType), "The name of the tag to attach to the instance")
+		value := flag.String("v", string(InstanceType), "The value of the tag to attach to the instance")
+		flag.Parse()
+
+		if *name == "" || *value == "" {
+			fmt.Println("You must supply a name and value for the tag (-n NAME -v VALUE)")
+			return
+		}
+
+	*/
+
+	name := "test"
+	value := "test2"
 
 	client := ec2.NewFromConfig(cfg)
 
@@ -169,11 +219,12 @@ func createEC2Instance(ImageId string, InstanceType types.InstanceType, KeyName 
 	maxInstances := int32(1)
 
 	input := &ec2.RunInstancesInput{
-		ImageId:      aws.String(ImageId),
-		InstanceType: InstanceType,
-		MinCount:     &minInstances,
-		MaxCount:     &maxInstances,
-		KeyName:      aws.String(KeyName),
+		ImageId:          aws.String(ImageId),
+		InstanceType:     InstanceType,
+		MinCount:         &minInstances,
+		MaxCount:         &maxInstances,
+		KeyName:          aws.String(KeyName),
+		SecurityGroupIds: []string{"xxx"},
 	}
 
 	result, err := MakeInstance(context.TODO(), client, input)
@@ -187,8 +238,8 @@ func createEC2Instance(ImageId string, InstanceType types.InstanceType, KeyName 
 		Resources: []string{*result.Instances[0].InstanceId},
 		Tags: []types.Tag{
 			{
-				Key:   name,
-				Value: value,
+				Key:   &name,
+				Value: &value,
 			},
 		},
 	}
@@ -201,6 +252,23 @@ func createEC2Instance(ImageId string, InstanceType types.InstanceType, KeyName 
 	}
 
 	fmt.Println("Created tagged instance with ID " + *result.Instances[0].InstanceId)
+	instanceID = *result.Instances[0].InstanceId
+}
+
+func getEC2ip(instanceID string) {
+	client := ec2.NewFromConfig(cfg)
+
+	input := &ec2.DescribeInstancesInput{
+		InstanceIds: []string{instanceID},
+	}
+
+	result, err := client.DescribeInstances(context.TODO(), input)
+	if err != nil {
+		fmt.Println("Got an error getting the instance:")
+		fmt.Println(err)
+	}
+	instanceIP = *result.Reservations[0].Instances[0].PublicIpAddress
+	fmt.Println(instanceIP)
 }
 
 func loadConfig() {
@@ -222,8 +290,17 @@ func loadConfig() {
 }
 
 func main() {
-	loadConfig()
-	//createEC2Instance("xxx", types.InstanceTypeT2Micro, "xxx")
-	//terminateEC2Instace("xxx")
-	//connectSSH()
+	instanceTypesArray = append(instanceTypesArray, types.InstanceTypeT3Large)
+	instanceTypesArray = append(instanceTypesArray, types.InstanceTypeM5Xlarge)
+
+	for i := 0; i < len(instanceTypesArray); i++ {
+		loadConfig()
+		fmt.Println(instanceTypesArray[i])
+		createEC2Instance("ami-0a1ee2fb28fe05df3", instanceTypesArray[i], "xxx")
+		time.Sleep(1 * time.Minute)
+		getEC2ip(instanceID)
+		connectSSH("xxx", instanceIP)
+		terminateEC2Instace(instanceID)
+	}
+
 }
