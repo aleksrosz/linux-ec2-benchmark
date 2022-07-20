@@ -14,7 +14,6 @@ import (
 	"log"
 	"os"
 	"strings"
-	"time"
 )
 
 var (
@@ -23,14 +22,10 @@ var (
 	instanceID         string
 	instanceIP         string
 	privateKey         string
-	instanceType       types.InstanceType
+	instanceType       string
 )
 
 //TODO
-type benchmarkResults struct {
-	instanceID   string
-	instanceType string
-}
 
 func readPubKey(file string) ssh.AuthMethod {
 	var key ssh.Signer
@@ -58,7 +53,7 @@ func readPubKey(file string) ssh.AuthMethod {
 
 func connectSSH(privateKey string, instanceIP string) {
 	config := &ssh.ClientConfig{
-		User: "xxx",
+		User: "ec2-user",
 		Auth: []ssh.AuthMethod{
 			readPubKey(privateKey),
 		},
@@ -108,7 +103,7 @@ func connectSSH(privateKey string, instanceIP string) {
 		"./configure",
 		"make",
 		"sudo make install",
-		"sysbench cpu --threads=1 --cpu-max-prime=50000 run",
+		"sysbench cpu --threads=1 --cpu-max-prime=2500000 run",
 	}
 	command := strings.Join(commands, "; ")
 
@@ -130,7 +125,7 @@ func connectSSH(privateKey string, instanceIP string) {
 			//log.Printf(scanner.Text())
 			buffer2 = append(buffer2, scanner.Text()...)
 			buffer2 = append(buffer2, '\n')
-			err := os.WriteFile("./"+string(instanceType), buffer2, 0600)
+			err := os.WriteFile("./sysbench"+string(instanceType)+".txt", buffer2, 0600)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -210,6 +205,7 @@ func createEC2Instance(ImageId string, InstanceType types.InstanceType, KeyName 
 
 	*/
 
+	//tags
 	name := "test"
 	value := "test2"
 
@@ -289,18 +285,69 @@ func loadConfig() {
 	}
 }
 
+//TODO if can't do something. Then delete instance.
 func main() {
-	instanceTypesArray = append(instanceTypesArray, types.InstanceTypeT3Large)
-	instanceTypesArray = append(instanceTypesArray, types.InstanceTypeM5Xlarge)
+	//M5
+	instanceTypesArray = append(instanceTypesArray, types.InstanceTypeM5Large)
+	/*
 
-	for i := 0; i < len(instanceTypesArray); i++ {
-		loadConfig()
-		fmt.Println(instanceTypesArray[i])
-		createEC2Instance("ami-0a1ee2fb28fe05df3", instanceTypesArray[i], "xxx")
-		time.Sleep(1 * time.Minute)
-		getEC2ip(instanceID)
-		connectSSH("xxx", instanceIP)
-		terminateEC2Instace(instanceID)
-	}
+				instanceTypesArray = append(instanceTypesArray, types.InstanceTypeM5Xlarge)
+			instanceTypesArray = append(instanceTypesArray, types.InstanceTypeM52xlarge)
+			instanceTypesArray = append(instanceTypesArray, types.InstanceTypeM54xlarge)
+			instanceTypesArray = append(instanceTypesArray, types.InstanceTypeM5Metal)
+			//M5d
+			instanceTypesArray = append(instanceTypesArray, types.InstanceTypeM5dLarge)
+			instanceTypesArray = append(instanceTypesArray, types.InstanceTypeM5dXlarge)
+			instanceTypesArray = append(instanceTypesArray, types.InstanceTypeM52xlarge)
+			instanceTypesArray = append(instanceTypesArray, types.InstanceTypeM54xlarge)
+			instanceTypesArray = append(instanceTypesArray, types.InstanceTypeM5dMetal)
 
+
+		//M6
+		//instanceTypesArray = append(instanceTypesArray, types.InstanceTypeM6aLarge)
+		//instanceTypesArray = append(instanceTypesArray, types.InstanceTypeM6aXlarge)
+		//instanceTypesArray = append(instanceTypesArray, types.InstanceTypeM6a2xlarge)
+		//instanceTypesArray = append(instanceTypesArray, types.InstanceTypeM6a4xlarge)
+		//instanceTypesArray = append(instanceTypesArray, types.InstanceTypeM6aMetal)
+
+		//M6i
+		instanceTypesArray = append(instanceTypesArray, types.InstanceTypeM6iLarge)
+		instanceTypesArray = append(instanceTypesArray, types.InstanceTypeM6iXlarge)
+		instanceTypesArray = append(instanceTypesArray, types.InstanceTypeM6i2xlarge)
+		instanceTypesArray = append(instanceTypesArray, types.InstanceTypeM6i4xlarge)
+		instanceTypesArray = append(instanceTypesArray, types.InstanceTypeM6iMetal)
+
+		//T3
+		instanceTypesArray = append(instanceTypesArray, types.InstanceTypeT3Nano)
+		instanceTypesArray = append(instanceTypesArray, types.InstanceTypeT3Micro)
+		instanceTypesArray = append(instanceTypesArray, types.InstanceTypeT3Large)
+		instanceTypesArray = append(instanceTypesArray, types.InstanceTypeT3Xlarge)
+		instanceTypesArray = append(instanceTypesArray, types.InstanceTypeT32xlarge)
+
+		//instanceTypesArray = append(instanceTypesArray, types.InstanceTypeT3Large)
+		//instanceTypesArray = append(instanceTypesArray, types.InstanceTypeT2Medium)
+	*/
+
+	/*
+		for i := 0; i < len(instanceTypesArray); i++ {
+			loadConfig()
+			fmt.Println("Test for instance type: " + instanceTypesArray[i])
+			instanceType = string(instanceTypesArray[i])
+			createEC2Instance("ami-0a1ee2fb28fe05df3", instanceTypesArray[i], "home-PC")
+			//TODO wait for instance to be running based on "Status check"
+			time.Sleep(120 * time.Second)
+			getEC2ip(instanceID)
+			connectSSH("./home-PC.pem", instanceIP)
+			terminateEC2Instace(instanceID)
+		}
+
+	*/
+	/*
+		for i := 0; i < len(instanceTypesArray); i++ {
+			fmt.Println("Read file: " + string("sysbench"+instanceTypesArray[i]+".txt"))
+			readFile(string("sysbench" + instanceTypesArray[i] + ".txt"))
+		}
+
+	*/
+	readFile("sysbenchm5.large.txt2")
 }
