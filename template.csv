@@ -1,0 +1,12 @@
+Instance name:
+Prime numbers limit:
+Cpu speed (events per second):
+Throughput events/s:
+Throughput time elapsed:
+Throughput total number of events:
+Latency ms min:
+Latency ms avg:
+Latency ms max:
+Latency ms 95 percentile:
+Threads fairness events (avg/stddev):
+Threads fairness events execution time (avg/stddev):
