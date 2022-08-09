@@ -1,7 +1,6 @@
 package main
 
 import (
-	"io/ioutil"
 	"log"
 	"os"
 	"regexp"
@@ -24,7 +23,7 @@ func ifFileExist(fileName string) bool {
 func readFile(fileName string, instanceName string) {
 	ifFileExist(fileName)
 
-	input, err := ioutil.ReadFile(fileName)
+	input, err := os.ReadFile(fileName)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -121,7 +120,7 @@ func readFile(fileName string, instanceName string) {
 	}
 	output := strings.Join(lines2, "\n")
 	lines2 = nil
-	err = ioutil.WriteFile("results_temporary.csv", []byte(output), 0644)
+	err = os.WriteFile("results_temporary.csv", []byte(output), 0644)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -129,14 +128,14 @@ func readFile(fileName string, instanceName string) {
 }
 
 func appendToCSVFile() {
-	input, err := ioutil.ReadFile("results_temporary.csv")
+	input, err := os.ReadFile("results_temporary.csv")
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	result, err := ioutil.ReadFile("results.csv")
+	result, err := os.ReadFile("results.csv")
 	if err != nil {
-		result, err = ioutil.ReadFile("template.csv")
+		result, err = os.ReadFile("template.csv")
 	}
 
 	lines := strings.Split(string(input), "\n")
@@ -150,7 +149,7 @@ func appendToCSVFile() {
 	}
 
 	output := strings.Join(lines2, "\n")
-	err = ioutil.WriteFile("results.csv", []byte(output), 0644)
+	err = os.WriteFile("results.csv", []byte(output), 0644)
 	if err != nil {
 		log.Fatalln(err)
 	}

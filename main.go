@@ -10,7 +10,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"golang.org/x/crypto/ssh"
-	"io/ioutil"
 	"log"
 	"os"
 	"strings"
@@ -32,7 +31,7 @@ func readPubKey(file string) ssh.AuthMethod {
 	var key ssh.Signer
 	var err error
 	var b []byte
-	b, err = ioutil.ReadFile(file)
+	b, err = os.ReadFile(file)
 	if err != nil {
 		log.Fatal(err) //"failed to read public key")
 	}
@@ -152,24 +151,30 @@ type EC2CreateInstanceAPI interface {
 
 // MakeInstance creates an Amazon Elastic Compute Cloud (Amazon EC2) instance.
 // Inputs:
-//     c is the context of the method call, which includes the AWS Region.
-//     api is the interface that defines the method call.
-//     input defines the input arguments to the service call.
+//
+//	c is the context of the method call, which includes the AWS Region.
+//	api is the interface that defines the method call.
+//	input defines the input arguments to the service call.
+//
 // Output:
-//     If success, a RunInstancesOutput object containing the result of the service call and nil.
-//     Otherwise, nil and an error from the call to RunInstances.
+//
+//	If success, a RunInstancesOutput object containing the result of the service call and nil.
+//	Otherwise, nil and an error from the call to RunInstances.
 func MakeInstance(c context.Context, api EC2CreateInstanceAPI, input *ec2.RunInstancesInput) (*ec2.RunInstancesOutput, error) {
 	return api.RunInstances(c, input)
 }
 
 // MakeTags creates tags for an Amazon Elastic Compute Cloud (Amazon EC2) instance.
 // Inputs:
-//     c is the context of the method call, which includes the AWS Region.
-//     api is the interface that defines the method call.
-//     input defines the input arguments to the service call.
+//
+//	c is the context of the method call, which includes the AWS Region.
+//	api is the interface that defines the method call.
+//	input defines the input arguments to the service call.
+//
 // Output:
-//     If success, a CreateTagsOutput object containing the result of the service call and nil.
-//     Otherwise, nil and an error from the call to CreateTags.
+//
+//	If success, a CreateTagsOutput object containing the result of the service call and nil.
+//	Otherwise, nil and an error from the call to CreateTags.
 func MakeTags(c context.Context, api EC2CreateInstanceAPI, input *ec2.CreateTagsInput) (*ec2.CreateTagsOutput, error) {
 	return api.CreateTags(c, input)
 }
@@ -286,14 +291,17 @@ func loadConfig() {
 	}
 }
 
-//TODO if can't do something. Then delete instance.
+// TODO if can't do something. Then delete instance.
 func main() {
 
+	instanceTypesArray = append(instanceTypesArray, types.InstanceTypeM5Metal)
+	instanceTypesArray = append(instanceTypesArray, types.InstanceTypeM6aMetal)
+
 	//M4
-	instanceTypesArray = append(instanceTypesArray, types.InstanceTypeM4Large)
-	instanceTypesArray = append(instanceTypesArray, types.InstanceTypeM4Xlarge)
-	instanceTypesArray = append(instanceTypesArray, types.InstanceTypeM42xlarge)
-	instanceTypesArray = append(instanceTypesArray, types.InstanceTypeM44xlarge)
+	//instanceTypesArray = append(instanceTypesArray, types.InstanceTypeM4Large)
+	//instanceTypesArray = append(instanceTypesArray, types.InstanceTypeM4Xlarge)
+	//instanceTypesArray = append(instanceTypesArray, types.InstanceTypeM42xlarge)
+	//instanceTypesArray = append(instanceTypesArray, types.InstanceTypeM44xlarge)
 	//instanceTypesArray = append(instanceTypesArray, types.InstanceTypeM410xlarge)
 	//instanceTypesArray = append(instanceTypesArray, types.InstanceTypeM416xlarge)
 
