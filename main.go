@@ -13,7 +13,6 @@ import (
 	"log"
 	"os"
 	"strings"
-	"time"
 )
 
 var (
@@ -364,24 +363,36 @@ func main() {
 		instanceTypesArray = append(instanceTypesArray, types.InstanceTypeT32xlarge)
 
 	*/
+	/*
+		for i := 0; i < len(instanceTypesArray); i++ {
+			loadConfig()
+			fmt.Println("Test for instance type: " + instanceTypesArray[i])
+			instanceType = string(instanceTypesArray[i])
+			createEC2Instance("ami-0a1ee2fb28fe05df3", instanceTypesArray[i], "home-PC")
+			// TODO wait for instance to be running based on "Status check"
+			time.Sleep(120 * time.Second)
+			getEC2ip(instanceID)
+			connectSSH("./home-PC.pem", instanceIP)
+			terminateEC2Instace(instanceID)
+		}
 
-	for i := 0; i < len(instanceTypesArray); i++ {
-		loadConfig()
-		fmt.Println("Test for instance type: " + instanceTypesArray[i])
-		instanceType = string(instanceTypesArray[i])
-		createEC2Instance("ami-0a1ee2fb28fe05df3", instanceTypesArray[i], "home-PC")
-		// TODO wait for instance to be running based on "Status check"
-		time.Sleep(120 * time.Second)
-		getEC2ip(instanceID)
-		connectSSH("./home-PC.pem", instanceIP)
-		terminateEC2Instace(instanceID)
+		for i := 0; i < len(instanceTypesArray); i++ {
+			fmt.Println("Read file: " + string("sysbench"+instanceTypesArray[i]+".txt"))
+			readFile(string("sysbench"+instanceTypesArray[i]+".txt"), string(instanceTypesArray[i]))
+			appendToCSVFile()
+
+		}
+
+
+	*/
+	// create in memory database for storing sysbenchResult structs
+	database := New()
+
+	result := readFile("sysbenchm5.large.txt", "m5.large")
+	database.Add(result)
+	foobar, ok := database.Get(0)
+	if ok {
+		fmt.Println(foobar.instanceName)
+		fmt.Println(foobar.cpuSpeed)
 	}
-
-	for i := 0; i < len(instanceTypesArray); i++ {
-		fmt.Println("Read file: " + string("sysbench"+instanceTypesArray[i]+".txt"))
-		readFile(string("sysbench"+instanceTypesArray[i]+".txt"), string(instanceTypesArray[i]))
-		appendToCSVFile()
-
-	}
-
 }

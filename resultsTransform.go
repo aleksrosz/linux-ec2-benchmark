@@ -4,7 +4,23 @@ import (
 	"log"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
+)
+
+var (
+	instanceName                  string
+	primeNumberLimit              string
+	cpuSpeed                      string
+	throughputEventsPerSecond     string
+	throughputTimeElapsed         string
+	throughputTotalNumberOfEvents string
+	latencyMin                    string
+	latencyAvg                    string
+	latencyMax                    string
+	latency95percentile           string
+	threadsFairnessEvents         string
+	threadsFairnessExecutionTime  string
 )
 
 func ifFileExist(fileName string) bool {
@@ -20,9 +36,8 @@ func ifFileExist(fileName string) bool {
 	return true
 }
 
-func readFile(fileName string, instanceName string) {
+func readFile(fileName string, instanceName string) (result sysbenchResult) {
 	ifFileExist(fileName)
-
 	input, err := os.ReadFile(fileName)
 	if err != nil {
 		log.Fatalln(err)
@@ -30,101 +45,143 @@ func readFile(fileName string, instanceName string) {
 
 	lines := strings.Split(string(input), "\n")
 	var element string
-	var lines2 []string
 
-	for i, line := range lines {
+	for _, line := range lines {
 
 		if strings.Contains(line, "Prime") {
-			lines2 = append(lines2, instanceName)
 			re := regexp.MustCompile(`[-]?\d[\d,]*[\.]?[\d{2}]*`)
 			submatchall := re.FindAllString(line, -1)
 			for _, element = range submatchall {
-				lines[i] = element
-				lines2 = append(lines2, lines[i])
+				primeNumberLimit = element
 			}
 		}
 		if strings.Contains(line, "events per second") {
 			re := regexp.MustCompile(`[-]?\d[\d,]*[\.]?[\d{2}]*`)
 			submatchall := re.FindAllString(line, -1)
 			for _, element = range submatchall {
-				lines[i] = element
-				lines2 = append(lines2, lines[i])
+				cpuSpeed = element
 			}
 		}
 		if strings.Contains(line, "events/s (eps):") {
 			re := regexp.MustCompile(`[-]?\d[\d,]*[\.]?[\d{2}]*`)
 			submatchall := re.FindAllString(line, -1)
 			for _, element = range submatchall {
-				lines[i] = element
-				lines2 = append(lines2, lines[i])
+				throughputEventsPerSecond = element
 			}
 		}
 		if strings.Contains(line, "time elapsed:") {
 			re := regexp.MustCompile(`[-]?\d[\d,]*[\.]?[\d{2}]*`)
 			submatchall := re.FindAllString(line, -1)
 			for _, element = range submatchall {
-				lines[i] = element
-				lines2 = append(lines2, lines[i])
+				throughputTimeElapsed = element
 			}
 		}
 		if strings.Contains(line, "total number of events:") {
 			re := regexp.MustCompile(`[-]?\d[\d,]*[\.]?[\d{2}]*`)
 			submatchall := re.FindAllString(line, -1)
 			for _, element = range submatchall {
-				lines[i] = element
-				lines2 = append(lines2, lines[i])
+				throughputTotalNumberOfEvents = element
 			}
 		}
 		if strings.Contains(line, "min:") {
 			re := regexp.MustCompile(`[-]?\d[\d,]*[\.]?[\d{2}]*`)
 			submatchall := re.FindAllString(line, -1)
 			for _, element = range submatchall {
-				lines[i] = element
-				lines2 = append(lines2, lines[i])
+				latencyMin = element
 			}
 		}
 		if strings.Contains(line, "avg:") {
 			re := regexp.MustCompile(`[-]?\d[\d,]*[\.]?[\d{2}]*`)
 			submatchall := re.FindAllString(line, -1)
 			for _, element = range submatchall {
-				lines[i] = element
-				lines2 = append(lines2, lines[i])
+				latencyAvg = element
 			}
 		}
 		if strings.Contains(line, "max:") {
 			re := regexp.MustCompile(`[-]?\d[\d,]*[\.]?[\d{2}]*`)
 			submatchall := re.FindAllString(line, -1)
 			for _, element = range submatchall {
-				lines[i] = element
-				lines2 = append(lines2, lines[i])
+				latencyMax = element
 			}
 		}
 		if strings.Contains(line, "95th percentile:") {
 			re := regexp.MustCompile(`[-]?\d[\d,]*[\.]?[\d{2}]*`)
 			submatchall := re.FindAllString(line, -1)
-			lines[i] = submatchall[1]
-			lines2 = append(lines2, lines[i])
+			latency95percentile = submatchall[1]
 		}
 		if strings.Contains(line, "events (avg/stddev):") {
 			re := regexp.MustCompile(`[-]?\d[\d,]*[\.]?[\d{2}]*`)
 			submatchall := re.FindAllString(line, -1)
-			lines[i] = submatchall[0]
-			lines2 = append(lines2, lines[i])
+			threadsFairnessEvents = submatchall[0]
 		}
 		if strings.Contains(line, "execution time (avg/stddev):") {
 			re := regexp.MustCompile(`[-]?\d[\d,]*[\.]?[\d{2}]*`)
 			submatchall := re.FindAllString(line, -1)
-			lines[i] = submatchall[0]
-			lines2 = append(lines2, lines[i])
+			threadsFairnessExecutionTime = submatchall[0]
 		}
 	}
-	output := strings.Join(lines2, "\n")
-	lines2 = nil
-	err = os.WriteFile("results_temporary.csv", []byte(output), 0644)
+
+	// convert values to sysbenchResults struct
+	primeNumberLimitInt, err := strconv.Atoi(primeNumberLimit)
 	if err != nil {
 		log.Fatalln(err)
 	}
+	cpuSpeedFloat64, err := strconv.ParseFloat(cpuSpeed, 64)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	throughputEventsPerSecondFloat64, err := strconv.ParseFloat(throughputEventsPerSecond, 64)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	throughputTimeElapsedFloat64, err := strconv.ParseFloat(throughputTimeElapsed, 64)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	throughputTotalNumberOfEventsInt, err := strconv.Atoi(throughputTotalNumberOfEvents)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	latencyMinFloat64, err := strconv.ParseFloat(latencyMin, 64)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	latencyAvgFloat64, err := strconv.ParseFloat(latencyAvg, 64)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	latencyMaxFloat64, err := strconv.ParseFloat(latencyMax, 64)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	latency95percentileFloat64, err := strconv.ParseFloat(latency95percentile, 64)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	threadsFairnessEventsFloat64, err := strconv.ParseFloat(threadsFairnessEvents, 64)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	threadsFairnessExecutionTimeFloat64, err := strconv.ParseFloat(threadsFairnessExecutionTime, 64)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	result = sysbenchResult{
+		instanceName:                  instanceName,
+		primeNumberLimit:              primeNumberLimitInt,
+		cpuSpeed:                      cpuSpeedFloat64,
+		throughputEventsPerSecond:     throughputEventsPerSecondFloat64,
+		throughputTimeElapsed:         throughputTimeElapsedFloat64,
+		throughputTotalNumberOfEvents: throughputTotalNumberOfEventsInt,
+		latencyMin:                    latencyMinFloat64,
+		latencyAvg:                    latencyAvgFloat64,
+		latencyMax:                    latencyMaxFloat64,
+		latency95percentile:           latency95percentileFloat64,
+		threadsFairnessEvents:         threadsFairnessEventsFloat64,
+		threadsFairnessExecutionTime:  threadsFairnessExecutionTimeFloat64,
+	}
 
+	return result
 }
 
 func appendToCSVFile() {
