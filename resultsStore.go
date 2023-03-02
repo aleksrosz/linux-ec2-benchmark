@@ -1,6 +1,9 @@
 package main
 
-import "sync"
+import (
+	"fmt"
+	"sync"
+)
 
 type sysbenchResult struct {
 	instanceName                  string
@@ -50,5 +53,6 @@ func (ts *sysbenchResultsStore) Get(id int) (sysbenchResult, bool) {
 	ts.Lock()
 	defer ts.Unlock()
 	result, ok := ts.results[id]
+	fmt.Print(result.instanceName)
 	return result, ok
 }

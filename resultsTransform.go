@@ -23,25 +23,13 @@ var (
 	threadsFairnessExecutionTime  string
 )
 
-func ifFileExist(fileName string) bool {
-	fileInfo, err := os.Stat(fileName)
-	if err != nil {
-		if os.IsNotExist(err) {
-			log.Fatal("File does not exist.")
-			return false
-		}
-	}
-	log.Println("File does exist. File information:")
-	log.Println(fileInfo)
-	return true
-}
-
-func readFile(fileName string, instanceName string) (result sysbenchResult) {
-	ifFileExist(fileName)
-	input, err := os.ReadFile(fileName)
+func readFile(fileName string) (result sysbenchResult) {
+	input, err := os.ReadFile("./results/" + fileName)
 	if err != nil {
 		log.Fatalln(err)
 	}
+	splitInstanceName := strings.Split(fileName, "_")
+	instanceName = strings.TrimSuffix(splitInstanceName[1], ".txt")
 
 	lines := strings.Split(string(input), "\n")
 	var element string
@@ -180,7 +168,6 @@ func readFile(fileName string, instanceName string) (result sysbenchResult) {
 		threadsFairnessEvents:         threadsFairnessEventsFloat64,
 		threadsFairnessExecutionTime:  threadsFairnessExecutionTimeFloat64,
 	}
-
 	return result
 }
 
@@ -210,5 +197,4 @@ func appendToCSVFile() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-
 }

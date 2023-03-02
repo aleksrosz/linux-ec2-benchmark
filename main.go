@@ -24,8 +24,7 @@ var (
 	instanceType       string
 )
 
-//TODO
-
+// TODO
 func readPubKey(file string) ssh.AuthMethod {
 	var key ssh.Signer
 	var err error
@@ -136,6 +135,30 @@ func connectSSH(privateKey string, instanceIP string) {
 	}
 }
 
+func readResultsFromFiles() {
+	database := New()
+
+	// Files number in ./results directory
+	files, err := os.ReadDir("./results")
+	if err != nil {
+		log.Fatal(err)
+	}
+	for i := 0; i < len(files); i++ {
+		result := readFile("sysbenchm5.large.txt")
+		if err != nil {
+			log.Fatal(err)
+		}
+		database.Add(result)
+		foobar, ok := database.Get(0)
+		if ok {
+			fmt.Println(foobar.instanceName)
+			fmt.Println(foobar.cpuSpeed)
+		}
+
+	}
+
+}
+
 // EC2CreateInstanceAPI defines the interface for the RunInstances and CreateTags functions.
 // We use this interface to test the functions using a mocked service.
 type EC2CreateInstanceAPI interface {
@@ -219,12 +242,14 @@ func createEC2Instance(ImageId string, InstanceType types.InstanceType, KeyName 
 	minInstances := int32(1)
 	maxInstances := int32(1)
 
+	subnnett := "xxx"
 	input := &ec2.RunInstancesInput{
 		ImageId:          aws.String(ImageId),
 		InstanceType:     InstanceType,
 		MinCount:         &minInstances,
 		MaxCount:         &maxInstances,
 		KeyName:          aws.String(KeyName),
+		SubnetId:         &subnnett,
 		SecurityGroupIds: []string{"xxx"},
 	}
 
@@ -292,78 +317,10 @@ func loadConfig() {
 
 // TODO if can't do something. Then delete instance.
 func main() {
-
-	instanceTypesArray = append(instanceTypesArray, types.InstanceTypeM5Metal)
-	instanceTypesArray = append(instanceTypesArray, types.InstanceTypeM6aMetal)
-
-	//M4
-	//instanceTypesArray = append(instanceTypesArray, types.InstanceTypeM4Large)
-	//instanceTypesArray = append(instanceTypesArray, types.InstanceTypeM4Xlarge)
-	//instanceTypesArray = append(instanceTypesArray, types.InstanceTypeM42xlarge)
-	//instanceTypesArray = append(instanceTypesArray, types.InstanceTypeM44xlarge)
-	//instanceTypesArray = append(instanceTypesArray, types.InstanceTypeM410xlarge)
-	//instanceTypesArray = append(instanceTypesArray, types.InstanceTypeM416xlarge)
-
+	instanceTypesArray = append(instanceTypesArray, types.InstanceTypeT2Nano)
+	instanceTypesArray = append(instanceTypesArray, types.InstanceTypeT3Micro)
 	/*
-		//M5
-		instanceTypesArray = append(instanceTypesArray, types.InstanceTypeM5Large)
-		instanceTypesArray = append(instanceTypesArray, types.InstanceTypeM5Xlarge)
-		instanceTypesArray = append(instanceTypesArray, types.InstanceTypeM52xlarge)
-		instanceTypesArray = append(instanceTypesArray, types.InstanceTypeM54xlarge)
-		instanceTypesArray = append(instanceTypesArray, types.InstanceTypeM5Metal)
 
-		//M5d
-		instanceTypesArray = append(instanceTypesArray, types.InstanceTypeM5dLarge)
-		instanceTypesArray = append(instanceTypesArray, types.InstanceTypeM5dXlarge)
-		instanceTypesArray = append(instanceTypesArray, types.InstanceTypeM52xlarge)
-		instanceTypesArray = append(instanceTypesArray, types.InstanceTypeM54xlarge)
-		instanceTypesArray = append(instanceTypesArray, types.InstanceTypeM5dMetal)
-
-		//M6a
-		instanceTypesArray = append(instanceTypesArray, types.InstanceTypeM6aLarge)
-		instanceTypesArray = append(instanceTypesArray, types.InstanceTypeM6aXlarge)
-		instanceTypesArray = append(instanceTypesArray, types.InstanceTypeM6a2xlarge)
-		instanceTypesArray = append(instanceTypesArray, types.InstanceTypeM6a4xlarge)
-		instanceTypesArray = append(instanceTypesArray, types.InstanceTypeM6aMetal)
-
-		//M6i
-		instanceTypesArray = append(instanceTypesArray, types.InstanceTypeM6iLarge)
-		instanceTypesArray = append(instanceTypesArray, types.InstanceTypeM6iXlarge)
-		instanceTypesArray = append(instanceTypesArray, types.InstanceTypeM6i2xlarge)
-		instanceTypesArray = append(instanceTypesArray, types.InstanceTypeM6i4xlarge)
-		instanceTypesArray = append(instanceTypesArray, types.InstanceTypeM6iMetal)
-	*/
-
-	/*
-		//T2
-		instanceTypesArray = append(instanceTypesArray, types.InstanceTypeT2Nano)
-		instanceTypesArray = append(instanceTypesArray, types.InstanceTypeT2Micro)
-		instanceTypesArray = append(instanceTypesArray, types.InstanceTypeT2Small)
-		instanceTypesArray = append(instanceTypesArray, types.InstanceTypeT2Medium)
-		instanceTypesArray = append(instanceTypesArray, types.InstanceTypeT2Large)
-		instanceTypesArray = append(instanceTypesArray, types.InstanceTypeT2Xlarge)
-		instanceTypesArray = append(instanceTypesArray, types.InstanceTypeT22xlarge)
-
-		//T3a
-		instanceTypesArray = append(instanceTypesArray, types.InstanceTypeT3aNano)
-		instanceTypesArray = append(instanceTypesArray, types.InstanceTypeT3aMicro)
-		instanceTypesArray = append(instanceTypesArray, types.InstanceTypeT3aSmall)
-		instanceTypesArray = append(instanceTypesArray, types.InstanceTypeT3aMedium)
-		instanceTypesArray = append(instanceTypesArray, types.InstanceTypeT3aLarge)
-		instanceTypesArray = append(instanceTypesArray, types.InstanceTypeT3aXlarge)
-		instanceTypesArray = append(instanceTypesArray, types.InstanceTypeT3a2xlarge)
-
-		//T3
-		instanceTypesArray = append(instanceTypesArray, types.InstanceTypeT3Nano)
-		instanceTypesArray = append(instanceTypesArray, types.InstanceTypeT3Micro)
-		instanceTypesArray = append(instanceTypesArray, types.InstanceTypeT3Small)
-		instanceTypesArray = append(instanceTypesArray, types.InstanceTypeT3Medium)
-		instanceTypesArray = append(instanceTypesArray, types.InstanceTypeT3Large)
-		instanceTypesArray = append(instanceTypesArray, types.InstanceTypeT3Xlarge)
-		instanceTypesArray = append(instanceTypesArray, types.InstanceTypeT32xlarge)
-
-	*/
-	/*
 		for i := 0; i < len(instanceTypesArray); i++ {
 			loadConfig()
 			fmt.Println("Test for instance type: " + instanceTypesArray[i])
@@ -375,24 +332,17 @@ func main() {
 			connectSSH("./home-PC.pem", instanceIP)
 			terminateEC2Instace(instanceID)
 		}
-
-		for i := 0; i < len(instanceTypesArray); i++ {
-			fmt.Println("Read file: " + string("sysbench"+instanceTypesArray[i]+".txt"))
-			readFile(string("sysbench"+instanceTypesArray[i]+".txt"), string(instanceTypesArray[i]))
-			appendToCSVFile()
-
-		}
-
-
 	*/
-	// create in memory database for storing sysbenchResult structs
-	database := New()
 
-	result := readFile("sysbenchm5.large.txt", "m5.large")
-	database.Add(result)
-	foobar, ok := database.Get(0)
-	if ok {
-		fmt.Println(foobar.instanceName)
-		fmt.Println(foobar.cpuSpeed)
+	// create in memory database for storing sysbenchResult structs
+	resultsStore := New()
+
+	for i := 0; i < len(instanceTypesArray); i++ {
+		sysbenchResult1 := readFile(string("sysbench_" + instanceTypesArray[i] + ".txt"))
+		resultsStore.Add(sysbenchResult1)
+		appendToCSVFile()
 	}
+	resultsStore.Get(0)
+	resultsStore.Get(1)
+
 }
