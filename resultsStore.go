@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"sync"
 )
 
@@ -53,6 +52,5 @@ func (ts *sysbenchResultsStore) Get(id int) (sysbenchResult, bool) {
 	ts.Lock()
 	defer ts.Unlock()
 	result, ok := ts.results[id]
-	fmt.Print(result.instanceName)
 	return result, ok
 }

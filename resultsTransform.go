@@ -170,31 +170,3 @@ func readFile(fileName string) (result sysbenchResult) {
 	}
 	return result
 }
-
-func appendToCSVFile() {
-	input, err := os.ReadFile("results_temporary.csv")
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	result, err := os.ReadFile("results.csv")
-	if err != nil {
-		result, err = os.ReadFile("template.csv")
-	}
-
-	lines := strings.Split(string(input), "\n")
-	lines2 := strings.Split(string(result), "\n")
-
-	for i := range lines {
-		lines2[i] = lines2[i] + ","
-	}
-	for i := range lines {
-		lines2[i] = lines2[i] + lines[i]
-	}
-
-	output := strings.Join(lines2, "\n")
-	err = os.WriteFile("results.csv", []byte(output), 0644)
-	if err != nil {
-		log.Fatalln(err)
-	}
-}

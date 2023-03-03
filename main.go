@@ -13,6 +13,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"time"
 )
 
 var (
@@ -123,7 +124,7 @@ func connectSSH(privateKey string, instanceIP string) {
 			//log.Printf(scanner.Text())
 			buffer2 = append(buffer2, scanner.Text()...)
 			buffer2 = append(buffer2, '\n')
-			err := os.WriteFile("./sysbench"+string(instanceType)+".txt", buffer2, 0600)
+			err := os.WriteFile("./results/sysbench_"+string(instanceType)+".txt", buffer2, 0600)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -133,30 +134,6 @@ func connectSSH(privateKey string, instanceIP string) {
 	if err := scanner.Err(); err != nil {
 		log.Fatal(err)
 	}
-}
-
-func readResultsFromFiles() {
-	database := New()
-
-	// Files number in ./results directory
-	files, err := os.ReadDir("./results")
-	if err != nil {
-		log.Fatal(err)
-	}
-	for i := 0; i < len(files); i++ {
-		result := readFile("sysbenchm5.large.txt")
-		if err != nil {
-			log.Fatal(err)
-		}
-		database.Add(result)
-		foobar, ok := database.Get(0)
-		if ok {
-			fmt.Println(foobar.instanceName)
-			fmt.Println(foobar.cpuSpeed)
-		}
-
-	}
-
 }
 
 // EC2CreateInstanceAPI defines the interface for the RunInstances and CreateTags functions.
@@ -317,32 +294,34 @@ func loadConfig() {
 
 // TODO if can't do something. Then delete instance.
 func main() {
-	instanceTypesArray = append(instanceTypesArray, types.InstanceTypeT2Nano)
-	instanceTypesArray = append(instanceTypesArray, types.InstanceTypeT3Micro)
-	/*
+	instanceTypesArray = append(instanceTypesArray, types.InstanceTypeM6aLarge)
+	instanceTypesArray = append(instanceTypesArray, types.InstanceTypeM6iLarge)
+	instanceTypesArray = append(instanceTypesArray, types.InstanceTypeM5Large)
 
-		for i := 0; i < len(instanceTypesArray); i++ {
-			loadConfig()
-			fmt.Println("Test for instance type: " + instanceTypesArray[i])
-			instanceType = string(instanceTypesArray[i])
-			createEC2Instance("ami-0a1ee2fb28fe05df3", instanceTypesArray[i], "home-PC")
-			// TODO wait for instance to be running based on "Status check"
-			time.Sleep(120 * time.Second)
-			getEC2ip(instanceID)
-			connectSSH("./home-PC.pem", instanceIP)
-			terminateEC2Instace(instanceID)
-		}
-	*/
+	for i := 0; i < len(instanceTypesArray); i++ {
+		loadConfig()
+		fmt.Println("Test for instance type: " + instanceTypesArray[i])
+		instanceType = string(instanceTypesArray[i])
+		createEC2Instance("ami-0a1ee2fb28fe05df3", instanceTypesArray[i], "home-PC")
+		// TODO wait for instance to be running based on "Status check"
+		time.Sleep(120 * time.Second)
+		getEC2ip(instanceID)
+		connectSSH("./xxx.pem", instanceIP)
+		terminateEC2Instace(instanceID)
+	}
 
 	// create in memory database for storing sysbenchResult structs
 	resultsStore := New()
 
 	for i := 0; i < len(instanceTypesArray); i++ {
-		sysbenchResult1 := readFile(string("sysbench_" + instanceTypesArray[i] + ".txt"))
-		resultsStore.Add(sysbenchResult1)
-		appendToCSVFile()
+		sysbenchResultFromFile := readFile(string("sysbench_" + instanceTypesArray[i] + ".txt"))
+		resultsStore.Add(sysbenchResultFromFile)
 	}
-	resultsStore.Get(0)
-	resultsStore.Get(1)
-
+	for i := 0; i < len(instanceTypesArray); i++ {
+		result, ok := resultsStore.Get(i)
+		if ok != true {
+			fmt.Println("Error")
+		}
+		fmt.Println(result.instanceName + " " + fmt.Sprintf("%f", result.cpuSpeed))
+	}
 }
